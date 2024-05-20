@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.12)
-project(simpleStamp)
+project(arcticSky)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
@@ -14,13 +14,13 @@ add_subdirectory(libs/glm)
 find_package(Vulkan REQUIRED)
 
 add_executable(
-    simpleStamp 
+    arcticSky 
     src/main.cpp
 ) 
 
-target_link_libraries(simpleStamp glfw)
-target_link_libraries(simpleStamp glm)
-target_link_libraries(simpleStamp Vulkan::Vulkan)
+target_link_libraries(arcticSky glfw)
+target_link_libraries(arcticSky glm)
+target_link_libraries(arcticSky Vulkan::Vulkan)
 
 
 
