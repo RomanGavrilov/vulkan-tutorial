@@ -38,12 +38,12 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 class HelloTriangleApplication
 {
 public:
-    void run()
+    void Run()
     {
-        initWindow();
-        initVulkan();
-        mainLoop();
-        cleanup();
+        InitWindow();
+        InitVulkan();
+        MainLoop();
+        Cleanup();
     }
 
 private:
@@ -52,7 +52,7 @@ private:
     VkDebugUtilsMessengerEXT debugMessenger;
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
 
-    void initWindow()
+    void InitWindow()
     {
         glfwInit();
 
@@ -62,14 +62,14 @@ private:
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
     }
 
-    void initVulkan()
+    void InitVulkan()
     {
-        createInstance();
-        setupDebugMessenger();
-        pickPhysicalDevice();
+        CreateInstance();
+        SetupDebugMessenger();
+        PickPhysicalDevice();
     }
 
-    void mainLoop()
+    void MainLoop()
     {
         while (!glfwWindowShouldClose(window))
         {
@@ -77,7 +77,7 @@ private:
         }
     }
 
-    void cleanup()
+    void Cleanup()
     {
         if (enableValidationLayers)
         {
@@ -91,9 +91,9 @@ private:
         glfwTerminate();
     }
 
-    void createInstance()
+    void CreateInstance()
     {
-        if (enableValidationLayers && !checkValidationLayerSupport())
+        if (enableValidationLayers && !CheckValidationLayerSupport())
         {
             throw std::runtime_error("validation layers requested, but not available!");
         }
@@ -110,7 +110,7 @@ private:
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
 
-        auto extensions = getRequiredExtensions();
+        auto extensions = GetRequiredExtensions();
         createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -120,7 +120,7 @@ private:
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
 
-            populateDebugMessengerCreateInfo(debugCreateInfo);
+            PopulateDebugMessengerCreateInfo(debugCreateInfo);
             createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
         }
         else
@@ -136,7 +136,7 @@ private:
         }
     }
 
-    void pickPhysicalDevice()
+    void PickPhysicalDevice()
     {
         uint32_t deviceCount = 0;
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -150,7 +150,7 @@ private:
 
         for (const auto &device : devices)
         {
-            if (isDeviceSuitable(device))
+            if (IsDeviceSuitable(device))
             {
                 physicalDevice = device;
                 break;
@@ -197,24 +197,24 @@ private:
         }
     }
 
-    bool isDeviceSuitable(VkPhysicalDevice device)
+    bool IsDeviceSuitable(VkPhysicalDevice device)
     {
-        QueueFamilyIndices indices = findQueueFamilies(device);
+        QueueFamilyIndices indices = FindQueueFamilies(device);
 
-        return indices.isComplete();
+        return indices.HasValue();
     }
 
     struct QueueFamilyIndices
     {
         std::optional<uint32_t> graphicsFamily;
 
-        bool isComplete()
+        bool HasValue()
         {
             return graphicsFamily.has_value();
         }
     };
 
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device)
+    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device)
     {
         QueueFamilyIndices indices;
 
@@ -232,7 +232,7 @@ private:
                 indices.graphicsFamily = i;
             }
 
-            if (indices.isComplete())
+            if (indices.HasValue())
             {
                 break;
             }
@@ -243,22 +243,22 @@ private:
         return indices;
     }
 
-    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo)
+    void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo)
     {
         createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = debugCallback;
+        createInfo.pfnUserCallback = DebugCallback;
     }
 
-    void setupDebugMessenger()
+    void SetupDebugMessenger()
     {
         if (!enableValidationLayers)
             return;
 
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
-        populateDebugMessengerCreateInfo(createInfo);
+        PopulateDebugMessengerCreateInfo(createInfo);
 
         if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
         {
@@ -266,7 +266,7 @@ private:
         }
     }
 
-    std::vector<const char *> getRequiredExtensions()
+    std::vector<const char *> GetRequiredExtensions()
     {
         uint32_t glfwExtensionCount = 0;
         const char **glfwExtensions;
@@ -282,7 +282,7 @@ private:
         return extensions;
     }
 
-    bool checkValidationLayerSupport()
+    bool CheckValidationLayerSupport()
     {
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -312,7 +312,7 @@ private:
         return true;
     }
 
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
+    static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
     {
         std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
@@ -326,7 +326,7 @@ int main()
 
     try
     {
-        app.run();
+        app.Run();
     }
     catch (const std::exception &e)
     {
