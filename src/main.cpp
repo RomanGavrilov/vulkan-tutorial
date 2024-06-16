@@ -11,6 +11,7 @@
 #include <algorithm>
 
 #include "debug.hpp"
+#include "shaders/shaders-loader.hpp"
 
 const std::vector<const char *> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -108,7 +109,28 @@ private:
 
     void CreateGraphicsPipeline()
     {
+        auto vertShader = ShadersLoader::readFile("shaders/vert.spv");
+        auto fragShader = ShadersLoader::readFile("shaders/frag.spv");
 
+        VkShaderModule vertShaderModule = CreateShaderModule(vertShader);
+        VkShaderModule fragShaderModule = CreateShaderModule(fragShader);
+
+        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+        vkDestroyShaderModule(device, vertShaderModule, nullptr);
+        vkDestroyShaderModule(device, fragShaderModule, nullptr);
     }
 
     void CreateImageViews()
@@ -134,7 +156,7 @@ private:
 
             if (vkCreateImageView(device, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
             {
-                throw std::runtime_error("failed to create image views!");
+                throw std::runtime_error("[App] failed to create image views!");
             }
         }
     }
@@ -185,7 +207,7 @@ private:
 
         if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create swap chain!");
+            throw std::runtime_error("[App] failed to create swap chain!");
         }
 
         vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
@@ -200,7 +222,7 @@ private:
     {
         if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create window surface!");
+            throw std::runtime_error("[App] failed to create window surface!");
         }
     }
 
@@ -234,7 +256,7 @@ private:
 
         if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create logical device!");
+            throw std::runtime_error("[App] failed to create logical device!");
         }
 
         vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
@@ -273,7 +295,7 @@ private:
     {
         if (enableValidationLayers && !CheckValidationLayerSupport())
         {
-            throw std::runtime_error("validation layers requested, but not available!");
+            throw std::runtime_error("[App] validation layers requested, but not available!");
         }
 
         VkApplicationInfo appInfo{};
@@ -310,7 +332,7 @@ private:
 
         if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create instance!");
+            throw std::runtime_error("[App] failed to create instance!");
         }
     }
 
@@ -320,7 +342,7 @@ private:
         vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
         if (deviceCount == 0)
         {
-            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+            throw std::runtime_error("[App] failed to find GPUs with Vulkan support!");
         }
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -337,7 +359,7 @@ private:
 
         if (physicalDevice == VK_NULL_HANDLE)
         {
-            throw std::runtime_error("failed to find a suitable GPU!");
+            throw std::runtime_error("[App] failed to find a suitable GPU!");
         }
 
         VkPhysicalDeviceProperties deviceProperties;
@@ -521,6 +543,22 @@ private:
         return details;
     }
 
+    VkShaderModule CreateShaderModule(const std::vector<char> &code)
+    {
+        VkShaderModuleCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.codeSize = code.size();
+        createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+        VkShaderModule shaderModule;
+        if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+        {
+            throw std::runtime_error("[App] failed to create shader module!");
+        }
+
+        return shaderModule;
+    }
+
     void PopulateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo)
     {
         createInfo = {};
@@ -540,7 +578,7 @@ private:
 
         if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to set up debug messenger!");
+            throw std::runtime_error("[App] failed to set up debug messenger!");
         }
     }
 

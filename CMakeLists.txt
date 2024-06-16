@@ -15,7 +15,8 @@ find_package(Vulkan REQUIRED)
 
 add_executable(
     arcticSky 
-    src/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/main.cpp
+    ${CMAKE_SOURCE_DIR}/src/shaders/shaders-loader.cpp
 ) 
 
 target_link_libraries(arcticSky glfw)
