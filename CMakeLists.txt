@@ -17,6 +17,7 @@ add_executable(
     arcticSky 
     ${CMAKE_SOURCE_DIR}/src/main.cpp
     ${CMAKE_SOURCE_DIR}/src/shaders/shaders-loader.cpp
+    ${CMAKE_SOURCE_DIR}/src/app.cpp
 ) 
 
 target_link_libraries(arcticSky glfw)
