@@ -55,6 +55,8 @@ private:
     void DrawFrame();
     static void FramebufferResizeCallback(GLFWwindow *window, int width, int height);
 
+    void CreateVertexBuffer();
+
 private:
     GLFWwindow *mWindow;
 
@@ -85,6 +87,9 @@ private:
     vector<VkSemaphore> mImageAvailableSemaphores;
     vector<VkSemaphore> mRenderFinishedSemaphores;
     vector<VkFence> mInFlightFences;
+
+    VkBuffer mVertexBuffer;
+    VkDeviceMemory mVertexBufferMemory;
 
     int mCurrentFrame = 0;
     bool mFramebufferResized = false;

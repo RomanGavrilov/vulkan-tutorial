@@ -5,6 +5,7 @@
 #include <set>
 #include <algorithm>
 #include <fstream>
+#include "data-binding.hpp"
 
 namespace
 {
@@ -109,7 +110,7 @@ namespace
         createInfo.pfnUserCallback = DebugCallback;
     }
 
-    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
+    VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const vector<VkSurfaceFormatKHR> &availableFormats)
     {
         for (const auto &availableFormat : availableFormats)
         {
@@ -122,7 +123,7 @@ namespace
         return availableFormats[0];
     }
 
-    VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes)
+    VkPresentModeKHR ChooseSwapPresentMode(const vector<VkPresentModeKHR> &availablePresentModes)
     {
         for (const auto &availablePresentMode : availablePresentModes)
         {
@@ -135,7 +136,7 @@ namespace
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    static vector<char> ReadFile(const std::string &filename)
+    static vector<char> ReadFile(const string &filename)
     {
         ifstream file(filename, ios::ate | ios::binary);
 
@@ -145,7 +146,7 @@ namespace
         }
 
         size_t fileSize = (size_t)file.tellg();
-        std::vector<char> buffer(fileSize);
+        vector<char> buffer(fileSize);
 
         file.seekg(0);
         file.read(buffer.data(), fileSize);
@@ -153,6 +154,22 @@ namespace
         file.close();
 
         return buffer;
+    }
+
+    uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkPhysicalDevice device)
+    {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
+
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+        {
+            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                return i;
+            }
+        }
+
+        throw runtime_error("failed to find suitable memory type!");
     }
 
 } // namespace
@@ -202,6 +219,7 @@ void App::InitVulkan()
     CreateGraphicsPipeline();
     CreateFramebuffers();
     CreateCommandPool();
+    CreateVertexBuffer();
     CreateCommandBuffers();
     CreateSyncObjects();
 }
@@ -235,6 +253,10 @@ void App::CleanupSwapChain()
 void App::Cleanup()
 {
     CleanupSwapChain();
+
+    vkDestroyBuffer(mDevice, mVertexBuffer, nullptr);
+    vkFreeMemory(mDevice, mVertexBufferMemory, nullptr);
+
     vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 
@@ -318,7 +340,7 @@ void App::SetupDebugMessenger()
 
     if (CreateDebugUtilsMessengerEXT(mInstance, &createInfo, nullptr, &mDebugMessenger) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to set up debug messenger!");
+        throw runtime_error("failed to set up debug messenger!");
     }
 }
 
@@ -326,7 +348,7 @@ void App::CreateSurface()
 {
     if (glfwCreateWindowSurface(mInstance, mWindow, nullptr, &mSurface) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create window surface!");
+        throw runtime_error("failed to create window surface!");
     }
 }
 
@@ -337,10 +359,10 @@ void App::PickPhysicalDevice()
 
     if (deviceCount == 0)
     {
-        throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        throw runtime_error("failed to find GPUs with Vulkan support!");
     }
 
-    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(mInstance, &deviceCount, devices.data());
 
     for (const auto &device : devices)
@@ -354,7 +376,7 @@ void App::PickPhysicalDevice()
 
     if (mPhysicalDevice == VK_NULL_HANDLE)
     {
-        throw std::runtime_error("failed to find a suitable GPU!");
+        throw runtime_error("failed to find a suitable GPU!");
     }
 }
 
@@ -362,8 +384,8 @@ void App::CreateLogicalDevice()
 {
     QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+    vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies)
@@ -401,7 +423,7 @@ void App::CreateLogicalDevice()
 
     if (vkCreateDevice(mPhysicalDevice, &createInfo, nullptr, &mDevice) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create logical device!");
+        throw runtime_error("failed to create logical device!");
     }
 
     vkGetDeviceQueue(mDevice, indices.graphicsFamily.value(), 0, &mGraphicsQueue);
@@ -456,7 +478,7 @@ void App::CreateSwapChain()
 
     if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapChain) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create swap chain!");
+        throw runtime_error("failed to create swap chain!");
     }
 
     vkGetSwapchainImagesKHR(mDevice, mSwapChain, &imageCount, nullptr);
@@ -509,7 +531,7 @@ void App::CreateImageViews()
 
         if (vkCreateImageView(mDevice, &createInfo, nullptr, &mSwapChainImageViews[i]) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create image views!");
+            throw runtime_error("failed to create image views!");
         }
     }
 }
@@ -554,7 +576,7 @@ void App::CreateRenderPass()
 
     if (vkCreateRenderPass(mDevice, &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create render pass!");
+        throw runtime_error("failed to create render pass!");
     }
 }
 
@@ -581,9 +603,15 @@ void App::CreateGraphicsPipeline()
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+
+    const auto bindingDescription = Vertex::GetBindingDescription();
+    const auto attributeDescriptions = Vertex::GetAttributeDescriptions();
+
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -625,9 +653,10 @@ void App::CreateGraphicsPipeline()
     colorBlending.blendConstants[2] = 0.0f;
     colorBlending.blendConstants[3] = 0.0f;
 
-    std::vector<VkDynamicState> dynamicStates = {
+    vector<VkDynamicState> dynamicStates = {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR};
+
     VkPipelineDynamicStateCreateInfo dynamicState{};
     dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
@@ -640,7 +669,7 @@ void App::CreateGraphicsPipeline()
 
     if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create pipeline layout!");
+        throw runtime_error("failed to create pipeline layout!");
     }
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -661,7 +690,7 @@ void App::CreateGraphicsPipeline()
 
     if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create graphics pipeline!");
+        throw runtime_error("failed to create graphics pipeline!");
     }
 
     vkDestroyShaderModule(mDevice, fragShaderModule, nullptr);
@@ -688,7 +717,7 @@ void App::CreateFramebuffers()
 
         if (vkCreateFramebuffer(mDevice, &framebufferInfo, nullptr, &mSwapChainFramebuffers[i]) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create framebuffer!");
+            throw runtime_error("failed to create framebuffer!");
         }
     }
 }
@@ -704,7 +733,7 @@ void App::CreateCommandPool()
 
     if (vkCreateCommandPool(mDevice, &poolInfo, nullptr, &mCommandPool) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create command pool!");
+        throw runtime_error("failed to create command pool!");
     }
 }
 
@@ -720,7 +749,7 @@ void App::CreateCommandBuffers()
 
     if (vkAllocateCommandBuffers(mDevice, &allocInfo, mCommandBuffers.data()) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to allocate command buffers!");
+        throw runtime_error("failed to allocate command buffers!");
     }
 }
 
@@ -731,7 +760,7 @@ void App::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex
 
     if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to begin recording command buffer!");
+        throw runtime_error("failed to begin recording command buffer!");
     }
 
     VkRenderPassBeginInfo renderPassInfo{};
@@ -763,13 +792,17 @@ void App::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex
     scissor.extent = mSwapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    VkBuffer vertexBuffers[] = {mVertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &mVertexBuffer, offsets);
+
+    vkCmdDraw(commandBuffer, static_cast<uint32_t>(VERTICES.size()), 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to record command buffer!");
+        throw runtime_error("failed to record command buffer!");
     }
 }
 
@@ -792,7 +825,7 @@ void App::CreateSyncObjects()
             vkCreateSemaphore(mDevice, &semaphoreInfo, nullptr, &mRenderFinishedSemaphores[i]) != VK_SUCCESS ||
             vkCreateFence(mDevice, &fenceInfo, nullptr, &mInFlightFences[i]) != VK_SUCCESS)
         {
-            throw std::runtime_error("failed to create synchronization objects for a frame!");
+            throw runtime_error("failed to create synchronization objects for a frame!");
         }
     }
 }
@@ -811,7 +844,7 @@ void App::DrawFrame()
     }
     else if (retVal != VK_SUCCESS && retVal != VK_SUBOPTIMAL_KHR)
     {
-        throw std::runtime_error("failed to acquire swap chain image!");
+        throw runtime_error("failed to acquire swap chain image!");
     }
 
     vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
@@ -837,7 +870,7 @@ void App::DrawFrame()
 
     if (vkQueueSubmit(mGraphicsQueue, 1, &submitInfo, mInFlightFences[mCurrentFrame]) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to submit draw command buffer!");
+        throw runtime_error("failed to submit draw command buffer!");
     }
 
     VkPresentInfoKHR presentInfo{};
@@ -861,10 +894,45 @@ void App::DrawFrame()
     }
     else if (retVal != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to present swap chain image!");
+        throw runtime_error("failed to present swap chain image!");
     }
 
     mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void App::CreateVertexBuffer()
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = sizeof(VERTICES[0]) * VERTICES.size();
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(mDevice, &bufferInfo, nullptr, &mVertexBuffer) != VK_SUCCESS)
+    {
+        throw runtime_error("failed to create vertex buffer!");
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(mDevice, mVertexBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, mPhysicalDevice);
+
+    if (vkAllocateMemory(mDevice, &allocInfo, nullptr, &mVertexBufferMemory) != VK_SUCCESS)
+    {
+        throw runtime_error("failed to allocate vertex buffer memory!");
+    }
+
+    // if offset is not 0, it must be a multiple of memRequirements.alignment
+    vkBindBufferMemory(mDevice, mVertexBuffer, mVertexBufferMemory, 0);
+
+    void *data;
+    vkMapMemory(mDevice, mVertexBufferMemory, 0, bufferInfo.size, 0, &data);
+    memcpy(data, VERTICES.data(), (size_t)bufferInfo.size);
+    vkUnmapMemory(mDevice, mVertexBufferMemory);
 }
 
 // move somewhere else
@@ -876,7 +944,7 @@ QueueFamilyIndices App::FindQueueFamilies(VkPhysicalDevice device)
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
     int i = 0;
@@ -914,7 +982,7 @@ bool App::CheckDeviceExtensionSupport(VkPhysicalDevice device)
     vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-    set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+    set<string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
     for (const auto &extension : availableExtensions)
     {
@@ -969,7 +1037,7 @@ SwapChainSupportDetails App::QuerySwapChainSupport(VkPhysicalDevice device)
 
 VkExtent2D App::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities)
 {
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    if (capabilities.currentExtent.width != numeric_limits<uint32_t>::max())
     {
         return capabilities.currentExtent;
     }
@@ -989,7 +1057,7 @@ VkExtent2D App::ChooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities)
     }
 }
 
-VkShaderModule App::CreateShaderModule(const std::vector<char> &code)
+VkShaderModule App::CreateShaderModule(const vector<char> &code)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -999,7 +1067,7 @@ VkShaderModule App::CreateShaderModule(const std::vector<char> &code)
     VkShaderModule shaderModule;
     if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create shader module!");
+        throw runtime_error("failed to create shader module!");
     }
 
     return shaderModule;
