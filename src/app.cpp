@@ -109,24 +109,6 @@ namespace
         createInfo.pfnUserCallback = DebugCallback;
     }
 
-    struct QueueFamilyIndices
-    {
-        optional<uint32_t> graphicsFamily;
-        optional<uint32_t> presentFamily;
-
-        bool isComplete()
-        {
-            return graphicsFamily.has_value() && presentFamily.has_value();
-        }
-    };
-
-    struct SwapChainSupportDetails
-    {
-        VkSurfaceCapabilitiesKHR capabilities;
-        vector<VkSurfaceFormatKHR> formats;
-        vector<VkPresentModeKHR> presentModes;
-    };
-
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats)
     {
         for (const auto &availableFormat : availableFormats)
@@ -190,6 +172,13 @@ void App::InitWindow()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     mWindow = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+    glfwSetFramebufferSizeCallback(mWindow, FramebufferResizeCallback);
+}
+
+void App::FramebufferResizeCallback(GLFWwindow *window, int width, int height)
+{
+    auto app = reinterpret_cast<App *>(glfwGetWindowUserPointer(window));
+    app->mFramebufferResized = true;
 }
 
 void App::InitVulkan()
@@ -220,26 +209,12 @@ void App::MainLoop()
     vkDeviceWaitIdle(mDevice);
 }
 
-void App::Cleanup()
+void App::CleanupSwapChain()
 {
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
-    {
-
-        vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(mDevice, mImageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(mDevice, mInFlightFences[i], nullptr);
-    }
-
-    vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
-
     for (auto framebuffer : mSwapChainFramebuffers)
     {
         vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
     }
-
-    vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
-    vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 
     for (auto imageView : mSwapChainImageViews)
     {
@@ -247,6 +222,24 @@ void App::Cleanup()
     }
 
     vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+}
+
+void App::Cleanup()
+{
+    CleanupSwapChain();
+    vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+
+    vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vkDestroySemaphore(mDevice, mRenderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(mDevice, mImageAvailableSemaphores[i], nullptr);
+        vkDestroyFence(mDevice, mInFlightFences[i], nullptr);
+    }
+
+    vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
     vkDestroyDevice(mDevice, nullptr);
 
     if (enableValidationLayers)
@@ -359,7 +352,7 @@ void App::PickPhysicalDevice()
 
 void App::CreateLogicalDevice()
 {
-    QueueFamilyIndicesTmp indices = FindQueueFamilies(mPhysicalDevice);
+    QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
@@ -409,7 +402,7 @@ void App::CreateLogicalDevice()
 
 void App::CreateSwapChain()
 {
-    SwapChainSupportDetailsTmp swapChainSupport = QuerySwapChainSupport(mPhysicalDevice);
+    SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(mPhysicalDevice);
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapChainSupport.presentModes);
@@ -432,7 +425,7 @@ void App::CreateSwapChain()
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndicesTmp indices = FindQueueFamilies(mPhysicalDevice);
+    QueueFamilyIndices indices = FindQueueFamilies(mPhysicalDevice);
     uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
     if (indices.graphicsFamily != indices.presentFamily)
@@ -464,6 +457,25 @@ void App::CreateSwapChain()
 
     mSwapChainImageFormat = surfaceFormat.format;
     mSwapChainExtent = extent;
+}
+
+void App::RecreateSwapChain()
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(mWindow, &width, &height);
+    while (width == 0 || height == 0)
+    {
+        glfwGetFramebufferSize(mWindow, &width, &height);
+        glfwWaitEvents();
+    }
+
+    vkDeviceWaitIdle(mDevice);
+
+    CleanupSwapChain();
+
+    CreateSwapChain();
+    CreateImageViews();
+    CreateFramebuffers();
 }
 
 void App::CreateImageViews()
@@ -675,7 +687,7 @@ void App::CreateFramebuffers()
 
 void App::CreateCommandPool()
 {
-    QueueFamilyIndicesTmp queueFamilyIndices = FindQueueFamilies(mPhysicalDevice);
+    QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(mPhysicalDevice);
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -780,10 +792,21 @@ void App::CreateSyncObjects()
 void App::DrawFrame()
 {
     vkWaitForFences(mDevice, 1, &mInFlightFences[mCurrentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
 
     uint32_t imageIndex;
-    vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mImageAvailableSemaphores[mCurrentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult retVal{vkAcquireNextImageKHR(mDevice, mSwapChain, UINT64_MAX, mImageAvailableSemaphores[mCurrentFrame], VK_NULL_HANDLE, &imageIndex)};
+
+    if (retVal == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        RecreateSwapChain();
+        return;
+    }
+    else if (retVal != VK_SUCCESS && retVal != VK_SUBOPTIMAL_KHR)
+    {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    vkResetFences(mDevice, 1, &mInFlightFences[mCurrentFrame]);
 
     vkResetCommandBuffer(mCommandBuffers[mCurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
     RecordCommandBuffer(mCommandBuffers[mCurrentFrame], imageIndex);
@@ -821,16 +844,26 @@ void App::DrawFrame()
 
     presentInfo.pImageIndices = &imageIndex;
 
-    vkQueuePresentKHR(mPresentQueue, &presentInfo);
+    retVal = vkQueuePresentKHR(mPresentQueue, &presentInfo);
+
+    if (retVal == VK_ERROR_OUT_OF_DATE_KHR || retVal == VK_SUBOPTIMAL_KHR || mFramebufferResized)
+    {
+        mFramebufferResized = false;
+        RecreateSwapChain();
+    }
+    else if (retVal != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to present swap chain image!");
+    }
 
     mCurrentFrame = (mCurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 // move somewhere else
 
-QueueFamilyIndicesTmp App::FindQueueFamilies(VkPhysicalDevice device)
+QueueFamilyIndices App::FindQueueFamilies(VkPhysicalDevice device)
 {
-    QueueFamilyIndicesTmp indices;
+    QueueFamilyIndices indices;
 
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -885,23 +918,23 @@ bool App::CheckDeviceExtensionSupport(VkPhysicalDevice device)
 
 bool App::IsDeviceSuitable(VkPhysicalDevice device)
 {
-    QueueFamilyIndicesTmp indices = FindQueueFamilies(device);
+    QueueFamilyIndices indices = FindQueueFamilies(device);
 
     bool extensionsSupported = CheckDeviceExtensionSupport(device);
 
     bool swapChainAdequate = false;
     if (extensionsSupported)
     {
-        SwapChainSupportDetailsTmp swapChainSupport = QuerySwapChainSupport(device);
+        SwapChainSupportDetails swapChainSupport = QuerySwapChainSupport(device);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
 
     return indices.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
-SwapChainSupportDetailsTmp App::QuerySwapChainSupport(VkPhysicalDevice device)
+SwapChainSupportDetails App::QuerySwapChainSupport(VkPhysicalDevice device)
 {
-    SwapChainSupportDetailsTmp details;
+    SwapChainSupportDetails details;
 
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, mSurface, &details.capabilities);
 

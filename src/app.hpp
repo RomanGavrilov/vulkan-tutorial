@@ -6,7 +6,7 @@
 
 using namespace std;
 
-struct QueueFamilyIndicesTmp
+struct QueueFamilyIndices
 {
     optional<uint32_t> graphicsFamily;
     optional<uint32_t> presentFamily;
@@ -17,7 +17,7 @@ struct QueueFamilyIndicesTmp
     }
 };
 
-struct SwapChainSupportDetailsTmp
+struct SwapChainSupportDetails
 {
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
@@ -33,6 +33,7 @@ private:
     void InitWindow();
     void InitVulkan();
     void MainLoop();
+    void CleanupSwapChain();
     void Cleanup();
 
     void CreateInstance();
@@ -41,6 +42,7 @@ private:
     void PickPhysicalDevice();
     void CreateLogicalDevice();
     void CreateSwapChain();
+    void RecreateSwapChain();
     void CreateImageViews();
     void CreateRenderPass();
     void CreateGraphicsPipeline();
@@ -51,6 +53,7 @@ private:
 
     void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void DrawFrame();
+    static void FramebufferResizeCallback(GLFWwindow *window, int width, int height);
 
 private:
     GLFWwindow *mWindow;
@@ -84,13 +87,14 @@ private:
     vector<VkFence> mInFlightFences;
 
     int mCurrentFrame = 0;
+    bool mFramebufferResized = false;
 
 private:
     // todo move to device class
     bool IsDeviceSuitable(VkPhysicalDevice device);
-    QueueFamilyIndicesTmp FindQueueFamilies(VkPhysicalDevice device);
+    QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
     bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
-    SwapChainSupportDetailsTmp QuerySwapChainSupport(VkPhysicalDevice device);
+    SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
     VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
     VkShaderModule CreateShaderModule(const std::vector<char> &code);
 };
