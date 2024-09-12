@@ -169,16 +169,24 @@ void App::InitWindow()
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     mWindow = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+    glfwSetWindowUserPointer(mWindow, this);
     glfwSetFramebufferSizeCallback(mWindow, FramebufferResizeCallback);
 }
 
 void App::FramebufferResizeCallback(GLFWwindow *window, int width, int height)
 {
     auto app = reinterpret_cast<App *>(glfwGetWindowUserPointer(window));
-    app->mFramebufferResized = true;
+    if (app != nullptr)
+    {
+        app->mFramebufferResized = true;
+    }
+    else
+    {
+        throw runtime_error("app is nullptr");
+    }
 }
 
 void App::InitVulkan()
