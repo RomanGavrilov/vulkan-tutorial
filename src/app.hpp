@@ -56,6 +56,7 @@ private:
     static void FramebufferResizeCallback(GLFWwindow *window, int width, int height);
 
     void CreateVertexBuffer();
+    void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
 private:
     GLFWwindow *mWindow;
