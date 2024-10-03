@@ -59,6 +59,8 @@ private:
     void CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
     void CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
 
+    void CreateIndexBuffer();
+
 private:
     GLFWwindow *mWindow;
 
@@ -92,6 +94,8 @@ private:
 
     VkBuffer mVertexBuffer;
     VkDeviceMemory mVertexBufferMemory;
+    VkBuffer mIndexBuffer;
+    VkDeviceMemory mIndexBufferMemory;
 
     int mCurrentFrame = 0;
     bool mFramebufferResized = false;
