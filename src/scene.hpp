@@ -1,5 +1,6 @@
 #pragma once
-
+#include <vector>
+#include <memory>
 #include <glm/glm.hpp>
 #include <vector>
 #include <vulkan/vulkan.hpp>
@@ -45,3 +46,38 @@ const std::vector<Vertex> VERTICES = {
 
 const std::vector<uint16_t> INDICIES = {
     0, 1, 2, 2, 3, 0};
+
+class Object
+{ 
+    Object &operator=(const Object &) = delete;
+    
+
+public:
+    const std::vector<Vertex> &GetVertices() const;
+    Object(const std::vector<Vertex> &&vertices);
+
+private:
+    std::vector<Vertex> mVerticies;
+};
+
+class Scene
+{
+public:
+    Scene();
+    const Object& Scene::GetObject() const;
+
+private:
+    std::unique_ptr<Object> mObject;
+};
+
+class SceneFactory
+{
+public:
+    static std::unique_ptr<Scene> CreateScene();
+};
+
+class ObjectFactory
+{
+public:
+    static std::unique_ptr<Object> CreateObject(const std::vector<Vertex> &&vertices);
+};

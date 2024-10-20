@@ -5,7 +5,7 @@
 #include <set>
 #include <algorithm>
 #include <fstream>
-#include "data-binding.hpp"
+#include "scene.hpp"
 
 namespace
 {
@@ -176,6 +176,8 @@ namespace
 void App::Run()
 {
     InitWindow();
+    InitKeyboard();
+    InitScene();
     InitVulkan();
     MainLoop();
     Cleanup();
@@ -189,8 +191,26 @@ void App::InitWindow()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     mWindow = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+
     glfwSetWindowUserPointer(mWindow, this);
     glfwSetFramebufferSizeCallback(mWindow, FramebufferResizeCallback);
+    glfwMakeContextCurrent(mWindow);
+}
+
+void App::InitKeyboard()
+{
+    mKeyboard = make_unique<Keyboard>();
+    glfwSetKeyCallback(mWindow, [](GLFWwindow *window, int key, int scancode, int action, int mods)
+                       {
+                            auto app = reinterpret_cast<App *>(glfwGetWindowUserPointer(window));
+                            if (app->mKeyboard != nullptr) 
+                            {   
+                                app->mKeyboard->HandleKeyPress(window, key, scancode, action, mods);
+
+                            } else 
+                            {
+                                std::cerr << "Error: Keyboard instance is null!" << std::endl;
+                            } });
 }
 
 void App::FramebufferResizeCallback(GLFWwindow *window, int width, int height)
@@ -223,6 +243,11 @@ void App::InitVulkan()
     CreateIndexBuffer();
     CreateCommandBuffers();
     CreateSyncObjects();
+}
+
+void App::InitScene()
+{
+    mScene = SceneFactory::CreateScene();
 }
 
 void App::MainLoop()
@@ -586,11 +611,11 @@ void App::CreateRenderPass()
 
 void App::CreateGraphicsPipeline()
 {
-    auto vertShaderCode = ReadFile("D:\\rep\\vulkan-tutorial\\src\\shaders\\vert.spv");
-    auto fragShaderCode = ReadFile("D:\\rep\\vulkan-tutorial\\src\\shaders\\frag.spv");
+    auto vertShaderCode{ReadFile("D:\\rep\\vulkan-tutorial\\src\\shaders\\vert.spv")};
+    auto fragShaderCode{ReadFile("D:\\rep\\vulkan-tutorial\\src\\shaders\\frag.spv")};
 
-    VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+    VkShaderModule vertShaderModule{CreateShaderModule(vertShaderCode)};
+    VkShaderModule fragShaderModule{CreateShaderModule(fragShaderCode)};
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -937,14 +962,16 @@ void App::CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryProp
 
 void App::CreateVertexBuffer()
 {
-    VkDeviceSize bufferSize = sizeof(VERTICES[0]) * VERTICES.size();
+    auto obj {mScene->GetObject()};
+
+    VkDeviceSize bufferSize = sizeof(obj) * obj.GetVertices().size();
     VkBuffer staignBuffer;
     VkDeviceMemory stagingBufferMemory;
     CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staignBuffer, stagingBufferMemory);
 
     void *data;
     vkMapMemory(mDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, VERTICES.data(), (size_t)bufferSize);
+    memcpy(data, obj.GetVertices().data(), (size_t)bufferSize);
     vkUnmapMemory(mDevice, stagingBufferMemory);
 
     CreateBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mVertexBuffer, mVertexBufferMemory);

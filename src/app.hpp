@@ -3,6 +3,10 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <optional>
+#include <memory>
+#include "keyboard.hpp"
+#include "scene.hpp"
+
 
 using namespace std;
 
@@ -32,6 +36,8 @@ public:
 private:
     void InitWindow();
     void InitVulkan();
+    void InitScene();
+    void InitKeyboard();
     void MainLoop();
     void CleanupSwapChain();
     void Cleanup();
@@ -62,8 +68,9 @@ private:
     void CreateIndexBuffer();
 
 private:
+    std::unique_ptr<Scene> mScene;
     GLFWwindow *mWindow;
-
+    std::unique_ptr<Keyboard> mKeyboard;
     VkInstance mInstance;
     VkDebugUtilsMessengerEXT mDebugMessenger;
     VkSurfaceKHR mSurface;
